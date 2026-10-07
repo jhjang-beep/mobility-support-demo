@@ -1,0 +1,98 @@
+<!doctype html><html lang="ko"><head><link rel="icon" href="data:,"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>교통약자 이동지원 배차·운영 최적화 v5</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;font-family:Arial,"Noto Sans KR",sans-serif;background:#f4f6f9;color:#172033}header{background:#172033;color:white;padding:20px 28px}h1{margin:0;font-size:25px}header p{margin:6px 0 0;color:#cbd5e1}.wrap{max-width:1500px;margin:auto;padding:18px 24px}.section{font-size:20px;font-weight:700;margin:25px 0 5px}.sub,.note{font-size:12px;color:#64748b;line-height:1.5}.panel,.card{background:#fff;border:1px solid #e4e8ee;border-radius:12px}.panel{padding:14px}.grid{display:grid;grid-template-columns:1.6fr .8fr;gap:12px}.map{height:520px;border-radius:9px;overflow:hidden}.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}select{padding:8px;border:1px solid #cbd5e1;border-radius:7px;background:white}.legend{padding:7px;background:#fff;border-radius:5px;line-height:18px;font-size:11px}.legend i{width:16px;height:10px;float:left;margin-right:6px;opacity:.85}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px;border-bottom:1px solid #eee;text-align:right}th:first-child,td:first-child{text-align:left}.queue{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:12px 0}.q{border-radius:10px;padding:13px;text-align:center;border:2px solid transparent;cursor:pointer}.q b{font-size:20px;display:block;margin:5px}.good{background:#ecfdf5}.watch{background:#fffbeb}.bad{background:#fff1f2}.severe{background:#fee2e2}.q.sel{border-color:#172033}.detail{display:grid;grid-template-columns:1fr 1fr;gap:12px}.big{font-size:32px;font-weight:800}.call{padding:14px;background:#f8fafc;border-left:4px solid #475569;line-height:1.6}.future{border:1px dashed #94a3b8;padding:13px;border-radius:10px;margin-top:10px}.line-label{background:white;border:0;box-shadow:none;font-weight:700;font-size:11px}.hospital-icon{font-size:22px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}.card{padding:13px}.card .v{font-size:23px;font-weight:700;margin-top:4px}@media(max-width:900px){.grid,.detail{grid-template-columns:1fr}.queue{grid-template-columns:repeat(3,1fr)}.map{height:430px}} </style></head>
+<body><header><h1>교통약자 이동지원 배차·운영 최적화</h1><p>수요 → 반복이동 → 대기누적 → 운영대안 · 서울시 공개데이터 기반 정책지원 Demo · 충남 적용 검토</p></header><div class=wrap>
+<div class=cards><div class=card><div class=sub>분석 이용건수</div><div class=v id=k1></div></div><div class=card><div class=sub>중앙 승차대기</div><div class=v id=k2></div></div><div class=card><div class=sub>60분 이상 대기</div><div class=v id=k3></div></div></div>
+
+<div class=call style="margin:14px 0;font-size:15px">
+<b>정책 질문</b>　차량을 무조건 늘리는 것이 아니라, <b>언제·어디에·어떤 형태의 차량을 투입해야 장기대기와 민원을 가장 효과적으로 줄일 수 있는가?</b>
+</div>
+<div class=section>1. 언제·어디에서 수요가 집중되는가</div><div class=sub>요일·시간을 선택하면 행정동 단위 수요 밀도를 표시합니다. 원자료의 ‘제1동/제2동’ 및 ‘.’ 표기를 지도 경계의 ‘1동/2동’ 및 ‘·’ 표기와 표준화해 매칭했습니다.</div>
+<div class=panel><div class=controls><select id=day></select><select id=hour></select></div><div class=grid><div id=map1 class=map></div><div><h3>수요 집중 행정동</h3><div id=hotTable></div><div class=call id=hotInsight></div></div></div></div>
+
+<div class=section>2. 반복적인 의료시설 이동수요</div><div class=sub>병원·요일·시간을 선택하면 주요 출발 행정동에서 의료시설 소재권역으로 향하는 반복 OD를 지도에 표현합니다.</div>
+<div class=panel><div class=controls><select id=hospital></select><select id=hday></select><select id=hhour></select></div><div class=grid><div id=map2 class=map></div><div><h3 id=hTitle></h3><div id=hInfo></div><h3>주요 출발지역</h3><div id=flowTable></div><div class=call id=hInsight></div></div></div><div class=note>※ 목적지가 행정동 단위이므로 실제 병원 방문이 아니라 ‘해당 의료기관 소재권역 도착’입니다. 선의 굵기는 반복 이동건수를 나타냅니다.</div></div>
+
+<div class=section>3. 어느 시간대에 공급확대가 필요한가</div><div class=sub>각 시각 현재 30분을 넘겨 아직 승차하지 못한 누적 대기수요를 계산했습니다. 시간대를 누르면 상세 상태를 확인할 수 있습니다.</div>
+<div class=panel><div class=controls><select id=qday></select></div><div id=queue class=queue></div><div class=detail><div class=call id=qDetail></div><div><div class=future><b>충남 실데이터 연계 시</b><p>목표 대기시간 30분 → <b>필요 추가차량 자동산정</b></p><p>근무 +1시간/+2시간 → <b>장기대기 감소효과 시뮬레이션</b></p><div class=note>필요 데이터: 하차시간, 차량 근무 시작·종료, 운행상태</div></div></div></div></div>
+
+<div class=section>4. 어느 지역부터 배차를 개선해야 하는가</div>
+<div class=sub>수요 규모와 60분 이상 장기대기 부담을 함께 고려해 배차 개선 우선지역을 찾습니다.</div>
+<div class=panel>
+ <div class=controls><select id=vperiod></select></div>
+ <div class=grid>
+  <div id=map4 class=map></div>
+  <div><h3>배차 개선 우선지역 TOP 10</h3><div id=vTable></div><div class=call id=vInsight></div></div>
+ </div>
+ <div class=note>※ 배차 취약도는 실제 민원 건수가 아닙니다. 최소 30건 이상 지역을 대상으로 수요 규모 40% + 60분 이상 장기대기 인원 부담 60%를 백분위로 표준화한 정책 우선순위 지표입니다.</div>
+</div>
+
+<div class=section>충남 실데이터 연계 시 추가 분석</div>
+<div class=panel>
+ <div class=detail>
+  <div><b>실제 민원 연계</b><div class=sub>취약지역과 실제 민원 발생지역 일치 여부 검증</div></div>
+  <div><b>필요차량 산정</b><div class=sub>목표 대기시간에 따른 시간대·지역별 추가차량 검토</div></div>
+ </div>
+ <div class=detail style="margin-top:10px">
+  <div><b>운행시간 시뮬레이션</b><div class=sub>근무시간 연장에 따른 장기대기 감소효과 분석</div></div>
+  <div><b>예약형·공동운행 검토</b><div class=sub>반복 OD와 시간대를 이용한 운행 후보 탐색</div></div>
+ </div>
+ <div class=call style="margin-top:12px"><b>추가 확보 우선 데이터</b>　하차시간 · 차량 근무 시작/종료 · 미배차/취소 · 민원 시간/지역/유형 · 출도착 좌표</div>
+</div>
+</div>
+<script>
+let D,GEO,map1,map2,map4,layer1,layer2,layer4;const days=['월','화','수','목','금','토','일'];const dongUrl='./seoul_dong.geojson';
+async function loadJson(url){
+  const r=await fetch(url,{cache:'no-store'});
+  if(!r.ok) throw new Error(url+' HTTP '+r.status);
+  return await r.json();
+}
+Promise.all([loadJson('./dashboard_data.json'),loadJson('./seoul_dong.geojson')])
+.then(([d,g])=>{D=d;GEO=g;console.log('LOAD OK',D,GEO.features.length);init();})
+.catch(e=>{console.error('LOAD FAILED',e);alert('데이터/지도 경계를 불러오지 못했습니다: '+e.message);});
+function opts(e,a){e.innerHTML=a.map(x=>`<option>${x}</option>`).join('')}function f(n){return Number(n).toLocaleString()}
+function canon(s){return String(s||'').trim().replaceAll('·','.').replace(/제(?=\d)/g,'').replaceAll(' ','')}
+function name(p){let a=(p.adm_nm||p.adm_name||p.name||'').trim().split(/\s+/);let dong=a[a.length-1]||'',gu=a[a.length-2]||'';return {gu:gu,dong:dong,key:canon(dong)}}
+function centroid(feat){let pts=[];(function rec(x){if(Array.isArray(x)&&typeof x[0]==='number')pts.push(x);else if(Array.isArray(x))x.forEach(rec)})(feat.geometry.coordinates);return [pts.reduce((a,p)=>a+p[1],0)/pts.length,pts.reduce((a,p)=>a+p[0],0)/pts.length]}
+function feature(gu,dong){let key=canon(dong);return GEO.features.find(x=>{let n=name(x.properties);return n.gu===gu&&n.key===key})}
+function init(){k1.textContent=f(D.overall.rides)+'건';k2.textContent=D.overall.median_wait+'분';k3.textContent=D.overall.over60+'%';opts(day,days);opts(hday,days);opts(qday,days);opts(hour,[...Array(24).keys()].map(x=>x+'시'));opts(hhour,[...Array(24).keys()].map(x=>x+'시'));opts(hospital,D.hospitals.map(x=>x.hospital));day.value=hday.value=qday.value='화';hour.value=hhour.value='8시';
+ map1=L.map('map1').setView([37.5665,126.978],11);map2=L.map('map2').setView([37.5665,126.978],11);map4=L.map('map4').setView([37.5665,126.978],11);[map1,map2,map4].forEach(m=>L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(m));
+ opts(vperiod,['전체',...days]);vperiod.value='전체';
+ day.onchange=drawHot;hour.onchange=drawHot;hospital.onchange=drawOD;hday.onchange=drawOD;hhour.onchange=drawOD;qday.onchange=drawQ;vperiod.onchange=drawV;drawHot();drawOD();drawQ();drawV()}
+function drawHot(){
+ if(layer1)map1.removeLayer(layer1);
+ let h=+hour.value.replace('시',''),a=D.hotspots.filter(x=>x.weekday===day.value&&x.hour===h),mx=Math.max(...a.map(x=>x.rides),1);
+ let lut=new Map(a.map(x=>[x.startpos1+'|'+(x.dong_key||canon(x.startpos2)),x]));
+ let layerByKey=new Map();
+ layer1=L.geoJSON(GEO,{
+  style:f=>{let n=name(f.properties),x=lut.get(n.gu+'|'+n.key),v=x?x.rides:0,r=v/mx;return {color:'#64748b',weight:.55,fillColor:r>.75?'#08306b':r>.5?'#2171b5':r>.25?'#6baed6':r>0?'#c6dbef':'#f8fafc',fillOpacity:v?.82:.16}},
+  onEachFeature:(f,l)=>{let n=name(f.properties),x=lut.get(n.gu+'|'+n.key);layerByKey.set(n.gu+'|'+n.key,l);if(x){l.bindTooltip(`<b>${x.startpos1} ${x.startpos2}</b><br>${x.rides}건 · 중앙대기 ${x.median_wait}분 · 60분↑ ${x.over60}%`);l.on('click',()=>selectHot(x,l))}}
+ }).addTo(map1);
+ let top=[...a].sort((x,y)=>y.rides-x.rides).slice(0,10);
+ hotTable.innerHTML='<table><thead><tr><th>지역</th><th>건수</th><th>대기</th></tr></thead><tbody>'+top.map((x,i)=>`<tr class="hotrow" data-i="${i}" style="cursor:pointer"><td>${x.startpos1} ${x.startpos2}</td><td>${x.rides}</td><td>${x.median_wait}분</td></tr>`).join('')+'</tbody></table>';
+ hotTable.querySelectorAll('.hotrow').forEach((r,i)=>r.addEventListener('click',()=>{let x=top[i],l=layerByKey.get(x.startpos1+'|'+(x.dong_key||canon(x.startpos2)));if(l){map1.fitBounds(l.getBounds(),{padding:[35,35],maxZoom:14});selectHot(x,l)}}));
+ let x=top[0];hotInsight.innerHTML=x?`<b>${day.value}요일 ${h}시</b> 최다 수요는 <b>${x.startpos1} ${x.startpos2}</b> ${x.rides}건입니다. 오른쪽 행을 클릭하면 지도에서 해당 행정동으로 확대됩니다.`:'';
+ function selectHot(x,l){layer1.eachLayer(z=>z.setStyle&&z.setStyle({weight:.55,color:'#64748b'}));if(l.setStyle)l.setStyle({weight:4,color:'#111827'});l.openTooltip()}
+}
+function drawOD(){if(layer2)map2.removeLayer(layer2);layer2=L.layerGroup().addTo(map2);let hn=hospital.value,h=+hhour.value.replace('시',''),hs=D.hospitals.find(x=>x.hospital===hn),dest=feature(hs.gu,hs.dong);hTitle.textContent=hn+' 소재권역';hInfo.innerHTML=`<p><b>${hs.gu} ${hs.dong}</b><br>9월 권역도착 ${f(hs.arrivals)}건 · 중앙대기 ${hs.median_wait}분</p>`;
+ if(dest){let dc=centroid(dest);L.geoJSON(dest,{style:{color:'#7f1d1d',weight:3,fillColor:'#fecaca',fillOpacity:.55}}).addTo(layer2);L.marker(dc).addTo(layer2).bindTooltip('🏥 '+hn,{permanent:true,direction:'top'});let flows=D.hospital_flows.filter(x=>x.hospital===hn&&x.weekday===hday.value&&x.hour===h).slice(0,12),mx=Math.max(...flows.map(x=>x.rides),1),bounds=[dc];
+ flows.forEach(x=>{let ft=feature(x.startpos1,x.startpos2);if(!ft)return;let c=centroid(ft);bounds.push(c);L.circleMarker(c,{radius:Math.max(5,5+8*x.rides/mx),weight:1,fillOpacity:.7}).addTo(layer2).bindTooltip(`${x.startpos1} ${x.startpos2}: ${x.rides}건`);L.polyline([c,dc],{weight:1+7*x.rides/mx,opacity:.55}).addTo(layer2)});
+ if(bounds.length>1)map2.fitBounds(bounds,{padding:[35,35]});flowTable.innerHTML=table(flows,[['출발지역',x=>x.startpos1+' '+x.startpos2],['건수',x=>x.rides+'건']]);let total=flows.reduce((a,x)=>a+x.rides,0);hInsight.innerHTML=`<b>${hday.value}요일 ${h}시</b> 주요 반복 출발지 ${flows.length}개에서 ${total}건이 확인됩니다. 반복축이 뚜렷하면 예약형 병원연계 차량 검토 후보입니다.`} }
+function drawQ(){let a=D.queue.filter(x=>x.weekday===qday.value&&x.hour>=13&&x.hour<=18);queue.innerHTML='';a.forEach((x,i)=>{let cls=x.queue30>=200?'severe':x.queue30>=80?'bad':x.queue30>=30?'watch':'good',d=document.createElement('div');d.className='q '+cls+(i===3?' sel':'');d.innerHTML=`${x.hour}시<b>${Math.round(x.queue30)}명</b><span class=sub>30분 초과 대기</span>`;d.onclick=()=>{document.querySelectorAll('.q').forEach(z=>z.classList.remove('sel'));d.classList.add('sel');detail(x)};queue.appendChild(d)});detail(a.find(x=>x.hour===16)||a[0])}
+function detail(x){let level=x.queue30>=200?'매우 높음':x.queue30>=80?'높음':x.queue30>=30?'주의':'낮음';qDetail.innerHTML=`<div class=sub>${qday.value}요일 ${x.hour}:00 공급확대 판단</div><div class=big>${Math.round(x.queue30)}명</div><b>30분 초과 누적 대기수요</b><p>해당 시간 접수건 중앙대기 <b>${x.median_wait}분</b><br>60분 이상 대기 <b>${x.over60}%</b><br>공급부족 의심 <b>${level}</b></p><p>→ 추가차량·근무연장 우선검토 시간대</p>`}
+function drawV(){
+ if(layer4)map4.removeLayer(layer4);
+ let a=D.vulnerability.filter(x=>x.period===vperiod.value),lut=new Map(a.map(x=>[x.startpos1+'|'+(x.dong_key||canon(x.startpos2)),x])),layers=new Map();
+ function col(s){return s>=80?'#7f1d1d':s>=60?'#dc2626':s>=40?'#f59e0b':s>0?'#fde68a':'#f8fafc'}
+ layer4=L.geoJSON(GEO,{style:f=>{let n=name(f.properties),x=lut.get(n.gu+'|'+n.key),s=x?x.score:0;return{color:'#64748b',weight:.55,fillColor:col(s),fillOpacity:s?.82:.14}},
+ onEachFeature:(f,l)=>{let n=name(f.properties),x=lut.get(n.gu+'|'+n.key);layers.set(n.gu+'|'+n.key,l);if(x)l.bindTooltip(`<b>${x.startpos1} ${x.startpos2}</b><br>취약도 ${x.score} · ${x.level}<br>이용 ${x.rides}건 · 중앙대기 ${x.median_wait}분 · 60분↑ ${x.over60}%`)}}).addTo(map4);
+ let top=[...a].sort((x,y)=>y.score-x.score).slice(0,10);
+ vTable.innerHTML='<table><thead><tr><th>지역</th><th>취약도</th><th>60분↑</th></tr></thead><tbody>'+top.map((x,i)=>`<tr class="vrow" data-i="${i}" style="cursor:pointer"><td>${x.startpos1} ${x.startpos2}</td><td><b>${x.score}</b></td><td>${x.over60}%</td></tr>`).join('')+'</tbody></table>';
+ vTable.querySelectorAll('.vrow').forEach((r,i)=>r.addEventListener('click',()=>{let x=top[i],l=layers.get(x.startpos1+'|'+(x.dong_key||canon(x.startpos2)));if(l){map4.fitBounds(l.getBounds(),{padding:[35,35],maxZoom:14});l.openTooltip()} insight(x)}));
+ if(top[0])insight(top[0]);
+ function insight(x){let pk=x.peak_day&&x.peak_hour!=null?`${x.peak_day}요일 ${Math.round(x.peak_hour)}시`:'확인 필요';vInsight.innerHTML=`<b>${x.startpos1} ${x.startpos2}</b> · 취약도 <b>${x.score} (${x.level})</b><br>이용 ${f(x.rides)}건 · 중앙대기 ${x.median_wait}분 · 60분 이상 ${x.over60}% (${f(x.over60_count)}명)<br>가장 취약한 시간대: <b>${pk}</b><br>→ 집중배차·근무조정 우선 검토지역`}
+}
+function table(a,c){return '<table><thead><tr>'+c.map(z=>'<th>'+z[0]+'</th>').join('')+'</tr></thead><tbody>'+a.map(x=>'<tr>'+c.map(z=>'<td>'+z[1](x)+'</td>').join('')+'</tr>').join('')+'</tbody></table>'}
+</script></body></html>
